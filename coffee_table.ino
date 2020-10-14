@@ -30,6 +30,11 @@ const int threshold = 150;
 int baseVal[totalSensors];
 boolean isOn[totalSensors];
 
+// Given a photodiode index, return the indexes of the ws2812b leds that are a part of that photodiode node.
+// We did not wire the photodiode nodes in the first 5 inputs of the PCB to reduce wire tripping. The first 4 are wired then
+// we skip the 5th input, then we use the 6th input. That's why this array has empty sections in the middle (where the 
+// 5th input will be). The photo diode indexes are oriented from right to left on the back of the board starting at 0 for the first row
+// and going up 10, then starting at 11 for the second row and going up to 21, and so on
 int ledIndexes[66][4] = {
   {0, 1, 22, 23}, // 0
   {1, 2, 21, 22},
@@ -141,40 +146,17 @@ void setup()
 
 void loop() 
 {
+  //reset leds so we can identify which ones change later
   resetLEDs();
-//  readInput1(8, multiplexerInput1, firstMultiplexerPins, 0);
+
+  // read from multiplexer chains and set leds that need to turn on/off
   readMultiplexerChain(8, multiplexerInput1, firstMultiplexerPins, 0);
   readMultiplexerChain(4, multiplexerInput2, secondMultiplexerPins, 8); // add offset since we start the second chain on the 9th column
-  // setup photodiode array
-//  for (int i=0; i<totalSensors; i++)
-//  {
-//    Serial.print("index: ");
-//    Serial.println(i);
-//    Serial.print("baseVal[ledIndex]: ");
-//    Serial.println(baseVal[i]);
-//    Serial.println("");
-//  }
+
+  // to speed things up only render leds if they changed
   if(ledsChanged) {
     FastLED.show();
   }
-}
-
-void readInput1(int numMultiplexers, int input, int multiplexerPins[], int offset)
-{
-  int multiplexerIndex = 1;
-
-  // set the pins to read from the current multiplexer in the chain
-  selectPinForMultiplexer(multiplexerIndex, readMultiplexerPins);
-
-  // for this multiplexer, read the 7 photodiode inputs in the column
-  int pin = 0;
-  
-  // set the pins to read from the current photodiode
-  selectPinForMultiplexer(pin, multiplexerPins);
-  
-  // turn on leds
-  int photoDiodeIndex = multiplexerIndex + offset + pin * 11;
-  setLEDs(input, photoDiodeIndex, multiplexerIndex, offset, pin);
 }
 
 void readMultiplexerChain(int numMultiplexers, int input, int multiplexerPins[], int offset)
@@ -191,8 +173,8 @@ void readMultiplexerChain(int numMultiplexers, int input, int multiplexerPins[],
       // set the pins to read from the current photodiode
       selectPinForMultiplexer(pin, multiplexerPins);
       
-      // turn on leds
-      int photoDiodeIndex = multiplexerIndex + offset + pin * 11;
+      // set leds on and off depending on if it is in a node that should be lit
+      int photoDiodeIndex = multiplexerIndex + offset + pin * 11; // photo diode indexes are described above
       setLEDs(input, photoDiodeIndex, multiplexerIndex, offset, pin);
     }
   }
@@ -229,29 +211,6 @@ void setLEDs(int input, int photoDiodeIndex, int multiplexerIndex, int offset, i
       ledsChanged = true;
     }
     isOn[photoDiodeIndex] = true;
-    Serial.print("ledIndexes[photoDiodeIndex]: ");
-    Serial.print(ledIndexes[photoDiodeIndex][0]);
-    Serial.print(", ");
-    Serial.print(ledIndexes[photoDiodeIndex][1]);
-    Serial.print(", ");
-    Serial.print(ledIndexes[photoDiodeIndex][2]);
-    Serial.print(", ");
-    Serial.println(ledIndexes[photoDiodeIndex][3]);
-    Serial.print("photoDiodeIndex: ");
-    Serial.println(photoDiodeIndex);
-    Serial.print("inputValue: ");
-    Serial.println(inputValue);
-    Serial.print("threshold: ");
-    Serial.println(threshold);
-    Serial.print("baseVal[photoDiodeIndex]: ");
-    Serial.println(baseVal[photoDiodeIndex]);
-    Serial.print("multiplexerIndex: ");
-    Serial.println(multiplexerIndex);
-    Serial.print("offset: ");
-    Serial.println(offset);
-    Serial.print("pin: ");
-    Serial.println(pin);
-    Serial.println("");
   }else{
     if(isOn[photoDiodeIndex]) {
       ledsChanged = true;
